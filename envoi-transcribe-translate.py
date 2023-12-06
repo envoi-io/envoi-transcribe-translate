@@ -363,7 +363,9 @@ def get_uri_from_opts(opts, attribute_name):
     if default_output_s3_uri is None and output_bucket_name is not None:
         default_output_s3_uri = f"s3://{output_bucket_name}"
 
-    output_s3_uri = (not (not getattr(opts, attribute_name, default_output_s3_uri) and not default_output_s3_uri))
+    output_s3_uri = getattr(opts, attribute_name, default_output_s3_uri)
+    if output_s3_uri is None and default_output_s3_uri is not None:
+        output_s3_uri = default_output_s3_uri
 
     return output_s3_uri
 

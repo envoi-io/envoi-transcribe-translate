@@ -640,10 +640,15 @@ def handle_s3_event_record(event_record):
 
     # event_name = event_record['eventName']
 
-    # config_file_path = os.environ.get('CONFIG_FILE_PATH')
-    # if config_file_path is not None:
-    #     with open(config_file_path) as config_file:
-    #         config = json.load(config_file)
+    config_file_uri = os.environ.get('CONFIG_FILE_URI')
+    if config_file_uri is None:
+        raise ValueError("CONFIG_FILE_URI environment variable must be set.")
+    else:
+        bucket_name, object_key = parse_s3_uri(config_file_uri)
+        config = S3Helper.read_object_json(bucket_name, object_key)
+
+    if config is None:
+        raise ValueError(f"Error loading config from {config_file_uri}")
 
     data_from_s3 = event_record['s3']
 
@@ -651,9 +656,9 @@ def handle_s3_event_record(event_record):
     s3_object = data_from_s3['object']
 
     media_file_uri = f"s3://{s3_bucket.name}/{s3_object.key}"
-    opts = {
-        'media_file_uri': media_file_uri,
-    }
+    opts = config['input']
+    opts['media_file_uri'] = media_file_uri
+
     command_handler = EnvoiTranscribeTranslateCreateCommand(opts)
     command_handler.run()
 

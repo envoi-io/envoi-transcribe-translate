@@ -1,5 +1,4 @@
 #!/bin/bash
-env > /tmp/env_before
 
 # Usage function
 usage() {
@@ -261,27 +260,6 @@ STEP_FUNCTION_JSON=$(cat <<-EOF
 }
 EOF
 )
-
-
-env > /tmp/env_after
-diff /tmp/env_before /tmp/env_after
-#rm /tmp/env_before /tmp/env_after
-if [ -n "${AWS_SECRET_ACCESS_KEY}" ]; then aws_secret="${AWS_SECRET_ACCESS_KEY:0:2}...${AWS_SECRET_ACCESS_KEY: -2}"; fi
-cat <<-EOF
-  AWS_PROFILE=${AWS_PROFILE}
-  AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-  AWS_SECRET_ACCESS_KEY=${aws_secret}
-  AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
-
-  STEP_FUNCTION_NAME=${STEP_FUNCTION_NAME}
-  POLICY_ARN=${POLICY_ARN}
-  POLICY_NAME=${POLICY_NAME}
-  ROLE_NAME=${ROLE_NAME}
-  ROLE_ARN=${ROLE_ARN}
-  skip_role_policy_attachment=${skip_role_policy_attachment}
-EOF
-exit 0
-
 
 if [ -z "${ROLE_ARN}" ]; then
   [ -z "${ROLE_NAME}" ] && echo "ROLE_ARN or ROLE_NAME must be specified." && exit 1

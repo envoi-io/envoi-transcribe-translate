@@ -82,9 +82,13 @@
             "Type": "Task",
             "Next": "Job Complete?",
             "Parameters": {
-              "JobId.$": "$.TextTranslationJobProperties.JobId"
+              "JobId.$": "$.JobId"
             },
-            "Resource": "arn:aws:states:::aws-sdk:translate:describeTextTranslationJob"
+            "Resource": "arn:aws:states:::aws-sdk:translate:describeTextTranslationJob",
+            "ResultSelector": {
+              "JobId.$": "$.TextTranslationJobProperties.JobId",
+              "JobStatus.$": "$.TextTranslationJobProperties.JobStatus"
+            }
           },
           "Job Complete?": {
             "Type": "Choice",
@@ -92,18 +96,18 @@
               {
                 "Or": [
                   {
-                    "Variable": "$.TextTranslationJobProperties.JobStatus",
+                    "Variable": "$.JobStatus",
                     "StringEquals": "IN_PROGRESS"
                   },
                   {
-                    "Variable": "$.TextTranslationJobProperties.JobStatus",
+                    "Variable": "$.JobStatus",
                     "StringEquals": "SUBMITTED"
                   }
                 ],
                 "Next": "Wait X Seconds for Translation Job to Progress"
               },
               {
-                "Variable": "$.TextTranslationJobProperties.JobStatus",
+                "Variable": "$.JobStatus",
                 "StringEquals": "COMPLETED",
                 "Next": "Translation Job Succeeded"
               }

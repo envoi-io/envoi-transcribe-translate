@@ -8,6 +8,7 @@
         "Media.$": "$.Transcribe.Media",
         "IdentifyLanguage": true,
         "OutputBucketName.$": "$.Transcribe.OutputBucketName",
+        "OutputKey.$": "$.Transcribe.OutputKey",
         "TranscriptionJobName.$": "$.Transcribe.TranscriptionJobName",
         "Subtitles.$": "$.Transcribe.Subtitles"
       },

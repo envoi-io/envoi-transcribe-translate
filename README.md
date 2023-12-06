@@ -13,6 +13,7 @@ A utility that submits media files to an AWS Step Functions to process transcrip
 
 ### Install AWSCLI using Homebrew
 brew install python
+
 brew install awscli
 
 

@@ -162,46 +162,31 @@ EOF
 
 POLICY_JSON=$(cat <<-EOF
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "envoiTranscribe",
-      "Effect": "Allow",
-      "Action": [
-        "transcribe:GetTranscriptionJob",
-        "transcribe:StartTranscriptionJob",
-        "transcribe:ListTagsForResource"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "envoiTranscribeS3",
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListTagsForResource",
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:ListBucket",
-        "s3:PutObjectTagging"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "envoiTranslate",
-      "Effect": "Allow",
-      "Action": [
-        "translate:CreateParallelData",
-        "translate:DescribeTextTranslationJob",
-        "translate:GetParallelData",
-        "translate:ListTagsForResource",
-        "translate:TagResource",
-        "translate:TranslateText",
-        "translate:UntagResource",
-        "translate:UpdateParallelData"
-      ],
-      "Resource": "*"
-    }
-  ]
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "envoiTranscribe",
+			"Effect": "Allow",
+			"Action": [
+				"transcribe:GetTranscriptionJob",
+				"transcribe:StartTranscriptionJob",
+				"transcribe:ListTagsForResource"
+			],
+			"Resource": "*"
+		},
+		{
+			"Sid": "envoiTranscribeS3",
+			"Effect": "Allow",
+			"Action": [
+				"s3:ListTagsForResource",
+				"s3:PutObject",
+				"s3:GetObject",
+				"s3:ListBucket",
+				"s3:PutObjectTagging"
+			],
+			"Resource": "*"
+		}
+	]
 }
 EOF
 )

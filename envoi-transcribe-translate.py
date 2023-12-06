@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import boto3
-from botocore.exceptions import ClientError
-from datetime import datetime
+import datetime
 import json
 from json import JSONEncoder
 import logging
@@ -12,12 +10,17 @@ import sys
 from urllib.parse import urlparse
 import uuid
 
+import boto3
+from botocore.exceptions import ClientError
+
+
 logger = logging.Logger('envoi-transcribe-translate')
 
 
 class CustomJsonEncoder(JSONEncoder):
+
     def default(self, obj):
-        if isinstance(obj, datetime):
+        if isinstance(obj, datetime.datetime):
             return obj.isoformat()
         if isinstance(obj, uuid.UUID):
             return str(obj)
@@ -329,7 +332,6 @@ def build_translate_input_for_file_and_language(input_data_config_s3_uri,
                                                 data_access_role_arn,
                                                 output_s3_uri,
                                                 client_token=None,
-                                                job_name="",
                                                 source_file_content_type='text/plain',
                                                 opts=None):
     if opts is None:
@@ -361,8 +363,7 @@ def get_uri_from_opts(opts, attribute_name):
     if default_output_s3_uri is None and output_bucket_name is not None:
         default_output_s3_uri = f"s3://{output_bucket_name}"
 
-    output_s3_uri = (getattr(opts, attribute_name, default_output_s3_uri)
-                                   or default_output_s3_uri)
+    output_s3_uri = (not (not getattr(opts, attribute_name, default_output_s3_uri) and not default_output_s3_uri))
 
     return output_s3_uri
 

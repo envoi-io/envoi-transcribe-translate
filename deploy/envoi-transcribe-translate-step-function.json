@@ -82,7 +82,7 @@
             "Type": "Task",
             "Next": "Job Complete?",
             "Parameters": {
-              "JobId.$": "$.JobId"
+              "JobId.$": "$.TextTranslationJobProperties.JobId"
             },
             "Resource": "arn:aws:states:::aws-sdk:translate:describeTextTranslationJob"
           },

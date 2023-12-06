@@ -638,7 +638,9 @@ def handle_s3_event_record(event_record):
     from the event and a configuration file, and then calls the appropriate command handler.
     """
 
-    # event_name = event_record['eventName']
+    event_name = event_record['eventName']
+    if event_name != 'ObjectCreated:Put':
+        raise NotImplementedError(f"Unsupported S3 event: {event_name}")
 
     config_file_uri = os.environ.get('CONFIG_FILE_URI')
     if config_file_uri is None:

@@ -75,8 +75,8 @@
           },
           "Wait X Seconds for Translation Job to Progress": {
             "Type": "Wait",
-            "SecondsPath": "$.wait_time",
-            "Next": "DescribeTextTranslationJob"
+            "Next": "DescribeTextTranslationJob",
+            "Seconds": 5
           },
           "DescribeTextTranslationJob": {
             "Type": "Task",

@@ -370,6 +370,20 @@ def get_uri_from_opts(opts, attribute_name):
     return output_s3_uri
 
 
+def build_transcribe_output_file_s3_uri(output_bucket_name, output_key, transcription_job_name,
+                                        file_ext='.json'):
+
+    output_s3_uri = os.path.join(f"s3://{output_bucket_name}", output_key)
+
+    if not output_key.endswith(file_ext):
+        if transcription_job_name is not None:
+            output_s3_uri = os.path.join(output_s3_uri, transcription_job_name)
+
+        output_s3_uri += file_ext
+
+    return output_s3_uri
+
+
 def build_translate_input_from_transcribe_input(transcribe_input, opts):
     """
     Build the AWS Translate input from the transcribe input.
@@ -381,9 +395,12 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
 
     transcribe_bucket_name = transcribe_input['OutputBucketName']
     transcribe_object_key = transcribe_input['OutputKey']
-    base_output_s3_uri = f"s3://{transcribe_bucket_name}/{transcribe_object_key}"
+    transcribe_job_name = transcribe_input['TranscriptionJobName']
+    base_output_s3_uri = build_transcribe_output_file_s3_uri(transcribe_bucket_name,
+                                                             transcribe_object_key,
+                                                             transcribe_job_name)
 
-    source_language_code = getattr(transcribe_input, 'SourceLanguageCode', None)
+    source_language_code = transcribe_input['LanguageCode']
     subtitles = transcribe_input['Subtitles']
     subtitle_formats = subtitles['Formats']
 
@@ -399,11 +416,11 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
 
     translate_inputs = []
     for subtitle_format in subtitle_formats:
-        output_s3_uri = f"${base_output_s3_uri}.{subtitle_format}"
+        transcribe_output_s3_uri = base_output_s3_uri.replace('.json', f".{subtitle_format}")
         for language_code in translate_language_codes:
             target_languages = [language_code]
             translate_input = build_translate_input_for_file_and_language(
-                input_data_config_s3_uri=output_s3_uri,
+                input_data_config_s3_uri=transcribe_output_s3_uri,
                 source_language_code=source_language_code,
                 target_languages=target_languages,
                 data_access_role_arn=data_access_role_arn,
@@ -449,10 +466,7 @@ def build_transcribe_input(opts):
     #     output_bucket_name=opts.output_bucket_name
     # )
 
-    if hasattr(opts, 'auto_identify_source_language'):
-        should_identify_language = opts['auto_identify_source_language']
-    else:
-        should_identify_language = False
+    should_identify_language = getattr(opts, 'auto_identify_source_language', False)
 
     transcription_output_s3_uri = get_uri_from_opts(opts, 'transcription_output_s3_uri')
     if transcription_output_s3_uri is None:

@@ -6,7 +6,7 @@
       "Type": "Task",
       "Parameters": {
         "Media.$": "$.Transcribe.Media",
-        "IdentifyLanguage.$": "$.Transcribe.IdentifyLanguage",
+        "IdentifyLanguage": true,
         "OutputBucketName.$": "$.Transcribe.OutputBucketName",
         "TranscriptionJobName.$": "$.Transcribe.TranscriptionJobName",
         "Subtitles.$": "$.Transcribe.Subtitles"
@@ -67,7 +67,7 @@
               "DataAccessRoleArn.$": "$.DataAccessRoleArn",
               "InputDataConfig.$": "$.InputDataConfig",
               "OutputDataConfig.$": "$.OutputDataConfig",
-              "SourceLanguageCode.$": "$.SourceLanguageCode",
+              "SourceLanguageCode": "auto",
               "TargetLanguageCodes.$": "$.TargetLanguageCodes"
             },
             "Resource": "arn:aws:states:::aws-sdk:translate:startTextTranslationJob"

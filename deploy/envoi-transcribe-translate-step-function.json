@@ -123,7 +123,8 @@
         }
       },
       "Next": "Success",
-      "ItemsPath": "$.Translate.Inputs"
+      "MaxConcurrency": 40,
+      "InputPath": "$$.Execution.Input.Translate.Inputs"
     },
     "Success": {
       "Type": "Succeed"

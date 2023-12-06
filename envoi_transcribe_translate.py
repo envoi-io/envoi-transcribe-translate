@@ -13,18 +13,17 @@ import uuid
 import boto3
 from botocore.exceptions import ClientError
 
-
 logger = logging.Logger('envoi-transcribe-translate')
 
 
 class CustomJsonEncoder(JSONEncoder):
 
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        return JSONEncoder.default(self, obj)
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            return o.isoformat()
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        return JSONEncoder.default(self, o)
 
 
 class S3Helper:
@@ -162,7 +161,7 @@ class EnvoiTranscribeTranslateDescribeCommand:
         execution_arn = opts.execution_arn
         sme = StateMachineExecution(execution_arn=execution_arn)
         description = sme.describe()
-        logger.debug(f"Description: {description}")
+        logger.debug("Description: %s", description)
 
         input_as_string = description.get('input', None)
         output_as_string = description.get('output', None)
@@ -332,11 +331,7 @@ def build_translate_input_for_file_and_language(input_data_config_s3_uri,
                                                 data_access_role_arn,
                                                 output_s3_uri,
                                                 client_token=None,
-                                                source_file_content_type='text/plain',
-                                                opts=None):
-    if opts is None:
-        opts = {}
-
+                                                source_file_content_type='text/plain'):
     if client_token is None:
         client_token = str(uuid.uuid4())
 
@@ -372,7 +367,6 @@ def get_uri_from_opts(opts, attribute_name):
 
 def build_transcribe_output_file_s3_uri(output_bucket_name, output_key, transcription_job_name,
                                         file_ext='.json'):
-
     output_s3_uri = os.path.join(f"s3://{output_bucket_name}", output_key)
 
     if not output_key.endswith(file_ext):
@@ -401,8 +395,8 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
                                                              transcribe_job_name)
 
     source_language_code = transcribe_input['LanguageCode']
-    subtitles = transcribe_input['Subtitles']
-    subtitle_formats = subtitles['Formats']
+    # subtitles = transcribe_input['Subtitles']
+    # subtitle_formats = subtitles['Formats']
 
     translation_languages = getattr(opts, 'translation_languages', [])
     if len(translation_languages) == 1 and translation_languages[0] == 'all':
@@ -450,7 +444,7 @@ def build_transcribe_input(opts):
     media_file_uri = opts.media_file_uri
     parsed_uri = urlparse(media_file_uri)
     file_name = os.path.basename(parsed_uri.path)
-    file_name_without_extension, file_name_ext = os.path.splitext(file_name)
+    file_name_without_extension, _file_name_ext = os.path.splitext(file_name)
 
     transcription_job_name = opts.transcription_job_name or f"{file_name_without_extension}-{str(uuid.uuid4())[:8]}"
 
@@ -468,7 +462,7 @@ def build_transcribe_input(opts):
 
     transcription_output_s3_uri = get_uri_from_opts(opts, 'transcription_output_s3_uri')
     if transcription_output_s3_uri is None:
-        raise ValueError(f"Transcription output s3 URI must be specified.")
+        raise ValueError("Transcription output s3 URI must be specified.")
 
     output_bucket_name, output_object_key = parse_s3_uri(transcription_output_s3_uri)
 
@@ -511,7 +505,7 @@ def build_run_input(opts):
 
 
 def run_step_function(state_machine_arn, run_input):
-    logger.debug(f"Running state machine: {state_machine_arn} {run_input}")
+    logger.debug('Running state machine: %s %s', state_machine_arn, run_input)
     run_input_json: str = json.dumps(run_input)
     execution_arn = StateMachine(state_machine_arn=state_machine_arn).start(run_input_json)
     return execution_arn
@@ -604,7 +598,7 @@ def lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
     try:
         print("Context: " + json.dumps(context, indent=2))
-    except Exception as e:
+    except (TypeError, RecursionError) as e:
         print("Exception print context.", e)
 
     event_record = event['Records'][0]
@@ -614,7 +608,7 @@ def lambda_handler(event, context):
         case 'aws:s3':
             handle_s3_event_record(event_record)
         case _:
-            raise Exception(f"Unsupported event source: {event_source}")
+            raise NotImplementedError(f"Unsupported event source: {event_source}")
 
     return context
 
@@ -628,12 +622,12 @@ def handle_s3_event_record(event_record):
     from the event and a configuration file, and then calls the appropriate command handler.
     """
 
-    event_name = event_record['eventName']
+    # event_name = event_record['eventName']
 
-    config_file_path = os.environ.get('CONFIG_FILE_PATH')
-    if config_file_path is not None:
-        with open(config_file_path) as config_file:
-            config = json.load(config_file)
+    # config_file_path = os.environ.get('CONFIG_FILE_PATH')
+    # if config_file_path is not None:
+    #     with open(config_file_path) as config_file:
+    #         config = json.load(config_file)
 
     data_from_s3 = event_record['s3']
 
@@ -665,7 +659,7 @@ def handle_cli_execution():
         # 'transcribe-translate': EnvoiTranscribeTranslateCommand,
     }
 
-    opts, args, env_vars, parser = parse_command_line(cli_args, env_vars, sub_commands)
+    opts, _unhandled_args, env_vars, parser = parse_command_line(cli_args, env_vars, sub_commands)
 
     # We create a new handler for the root logger, so that we can get
     # setLevel to set the desired log level.
@@ -689,5 +683,5 @@ def handle_cli_execution():
 
 
 if __name__ == '__main__':
-    exit_code = handle_cli_execution()
-    sys.exit(exit_code)
+    EXIT_CODE = handle_cli_execution()
+    sys.exit(EXIT_CODE)

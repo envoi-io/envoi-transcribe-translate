@@ -362,6 +362,13 @@ def get_uri_from_opts(opts, attribute_name):
     if output_s3_uri is None and default_output_s3_uri is not None:
         output_s3_uri = default_output_s3_uri
 
+    should_append_transcription_job_to_object_key = getattr(opts, 'append_transcription_job_to_object_key', True)
+    transcription_job_name = getattr(opts, 'transcription_job_name', None)
+    if transcription_job_name and should_append_transcription_job_to_object_key:
+        if not output_s3_uri.endswith("/"):
+            output_s3_uri += "/"
+        output_s3_uri += f"{transcription_job_name}/"
+
     return output_s3_uri
 
 
@@ -408,21 +415,27 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
 
     translate_output_s3_uri = get_uri_from_opts(opts, 'translation_output_s3_uri')
 
+    if translate_output_s3_uri.endswith('/'):
+        translate_output_s3_uri = translate_output_s3_uri[:-1]
+
+    translate_output_s3_uri += '-translated/'
+
     translate_inputs = []
-    for subtitle_format in subtitle_formats:
-        transcribe_output_s3_uri = base_output_s3_uri.replace('.json', f".{subtitle_format}")
-        for language_code in translate_language_codes:
-            target_languages = [language_code]
-            translate_input = build_translate_input_for_file_and_language(
-                input_data_config_s3_uri=transcribe_output_s3_uri,
-                source_language_code=source_language_code,
-                target_languages=target_languages,
-                data_access_role_arn=data_access_role_arn,
-                output_s3_uri=translate_output_s3_uri,
-                opts=opts
-            )
-            if translate_input is not None:
-                translate_inputs.append(translate_input)
+    # for subtitle_format in subtitle_formats:
+    transcribe_output_s3_uri = os.path.dirname(base_output_s3_uri)  # .replace('.json', f".{subtitle_format}")
+    if not transcribe_output_s3_uri.endswith('/'):
+        transcribe_output_s3_uri = transcribe_output_s3_uri + '/'
+    for language_code in translate_language_codes:
+        target_languages = [language_code]
+        translate_input = build_translate_input_for_file_and_language(
+            input_data_config_s3_uri=transcribe_output_s3_uri,
+            source_language_code=source_language_code,
+            target_languages=target_languages,
+            data_access_role_arn=data_access_role_arn,
+            output_s3_uri=translate_output_s3_uri
+        )
+        if translate_input is not None:
+            translate_inputs.append(translate_input)
 
     translate_input = {
         "Inputs": translate_inputs
@@ -465,6 +478,9 @@ def build_transcribe_input(opts):
         raise ValueError("Transcription output s3 URI must be specified.")
 
     output_bucket_name, output_object_key = parse_s3_uri(transcription_output_s3_uri)
+
+    if not output_object_key.endswith('/'):
+        output_object_key += '/'
 
     transcribe_input = {
         "Media": {

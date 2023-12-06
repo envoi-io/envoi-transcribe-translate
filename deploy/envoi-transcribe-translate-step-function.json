@@ -46,7 +46,7 @@
               "StringEquals": "QUEUED"
             }
           ],
-          "Next": "Transcription Job Failed"
+          "Next": "Wait X Seconds for Transcription Job to Progress"
         }
       ],
       "Default": "Transcription Job Failed"

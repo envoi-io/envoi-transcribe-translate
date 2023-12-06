@@ -34,7 +34,7 @@
         {
           "Variable": "$.TranscriptionJob.TranscriptionJobStatus",
           "StringEquals": "COMPLETED",
-          "Next": "Map"
+          "Next": "Translate Transcription Files"
         },
         {
           "Or": [
@@ -52,7 +52,7 @@
       ],
       "Default": "Transcription Job Failed"
     },
-    "Map": {
+    "Translate Transcription Files": {
       "Type": "Map",
       "ItemProcessor": {
         "ProcessorConfig": {

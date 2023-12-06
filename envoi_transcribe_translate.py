@@ -431,9 +431,7 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
                 translate_inputs.append(translate_input)
 
     translate_input = {
-        "Translate": {
-            "Inputs": translate_inputs
-        }
+        "Inputs": translate_inputs
     }
 
     return translate_input

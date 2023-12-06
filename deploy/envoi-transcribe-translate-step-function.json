@@ -92,18 +92,18 @@
               {
                 "Or": [
                   {
-                    "Variable": "$. TextTranslationJobProperties.JobStatus",
+                    "Variable": "$.TextTranslationJobProperties.JobStatus",
                     "StringEquals": "IN_PROGRESS"
                   },
                   {
-                    "Variable": "$. TextTranslationJobProperties.JobStatus",
+                    "Variable": "$.TextTranslationJobProperties.JobStatus",
                     "StringEquals": "SUBMITTED"
                   }
                 ],
                 "Next": "Wait X Seconds for Translation Job to Progress"
               },
               {
-                "Variable": "$. TextTranslationJobProperties.JobStatus",
+                "Variable": "$.TextTranslationJobProperties.JobStatus",
                 "StringEquals": "COMPLETED",
                 "Next": "Translation Job Succeeded"
               }

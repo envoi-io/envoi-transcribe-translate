@@ -44,35 +44,35 @@ class S3Helper:
         return json.loads(file_contents) if file_contents is not None else None
 
 
-class Options:
-
-    def __init__(self, config_path):
-        self.config_path = config_path
-        self.config = self.load_config() if config_path else {}
-        self.overrides = {}
-
-    def load_config(self):
-        with open(self.config_path) as config_file:
-            opts = json.load(config_file)  # Assumes your config file is in json format
-            self.config = opts
-
-    def load_args(self, parser=None):
-        if parser is None:
-            opts = {}
-        else:
-            (opts, args) = parser.parse_known_args()
-
-        self.overrides = opts
-        return opts
-
-    def get(self, key, default=None):
-        # First, try to get the value from command line arguments
-        value = getattr(self.overrides, key, None)
-        # If not supplied, try the config file
-        if value is None:
-            value = self.config.get(key, None)
-        # If still not found, return the default
-        return value if value is not None else default
+# class Options:
+#
+#     def __init__(self, config_path):
+#         self.config_path = config_path
+#         self.config = self.load_config() if config_path else {}
+#         self.overrides = {}
+#
+#     def load_config(self):
+#         with open(self.config_path) as config_file:
+#             opts = json.load(config_file)  # Assumes your config file is in json format
+#             self.config = opts
+#
+#     def load_args(self, parser=None):
+#         if parser is None:
+#             opts = {}
+#         else:
+#             (opts, args) = parser.parse_known_args()
+#
+#         self.overrides = opts
+#         return opts
+#
+#     def get(self, key, default=None):
+#         # First, try to get the value from command line arguments
+#         value = getattr(self.overrides, key, None)
+#         # If not supplied, try the config file
+#         if value is None:
+#             value = self.config.get(key, None)
+#         # If still not found, return the default
+#         return value if value is not None else default
 
 
 class EnvoiTranscribeTranslateCreateCommand:
@@ -134,7 +134,7 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--transcription-output-s3-uri', dest='transcription_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
-        parser.add_argument('--translation-data-access-role-arn', dest='transcription_data_access_role_arn',
+        parser.add_argument('--translation-data-access-role-arn', dest='translation_data_access_role_arn',
                             default=None,
                             help='The ARN of the role to use for translate to access data.')
         parser.add_argument('-l', '--translation-languages', dest='translation_languages',
@@ -355,23 +355,44 @@ def build_translate_input_for_file_and_language(input_data_config_s3_uri,
     return translate_input
 
 
+def get_uri_from_opts(opts, attribute_name):
+    output_bucket_name = getattr(opts, 'output_bucket_name', None)
+    default_output_s3_uri = getattr(opts, 'output_s3_uri')
+    if default_output_s3_uri is None and output_bucket_name is not None:
+        default_output_s3_uri = f"s3://{output_bucket_name}"
+
+    output_s3_uri = (getattr(opts, attribute_name, default_output_s3_uri)
+                                   or default_output_s3_uri)
+
+    return output_s3_uri
+
+
 def build_translate_input_from_transcribe_input(transcribe_input, opts):
+    """
+    Build the AWS Translate input from the transcribe input.
+
+    :param transcribe_input: The transcribe input.
+    :param opts: The command line options.
+    :return: The AWS Translate input.
+    """
+
     transcribe_bucket_name = transcribe_input['OutputBucketName']
     transcribe_object_key = transcribe_input['OutputKey']
     base_output_s3_uri = f"s3://{transcribe_bucket_name}/{transcribe_object_key}"
 
     source_language_code = getattr(transcribe_input, 'SourceLanguageCode', None)
-    subtitles = getattr(transcribe_input, 'Subtitles', {})
-    subtitle_formats = getattr(subtitles, 'Formats')
+    subtitles = transcribe_input['Subtitles']
+    subtitle_formats = subtitles['Formats']
 
-    translation_languages = opts['translation_languages']
+    translation_languages = getattr(opts, 'translation_languages', [])
     if len(translation_languages) == 1 and translation_languages[0] == 'all':
         translate_language_codes = get_translation_languages([source_language_code])
     else:
         translate_language_codes = translation_languages
 
-    data_access_role_arn = opts['translate_data_access_role_arn']
-    translate_output_s3_uri = opts['transcribe_output_s3_uri']
+    data_access_role_arn = getattr(opts, 'translation_data_access_role_arn')
+
+    translate_output_s3_uri = get_uri_from_opts(opts, 'translation_output_s3_uri')
 
     translate_inputs = []
     for subtitle_format in subtitle_formats:
@@ -430,13 +451,7 @@ def build_transcribe_input(opts):
     else:
         should_identify_language = False
 
-    output_bucket_name = getattr(opts, 'output_bucket_name', None)
-    default_output_s3_uri = getattr(opts, 'output_s3_uri')
-    if default_output_s3_uri is None and output_bucket_name is not None:
-        default_output_s3_uri = f"s3://{output_bucket_name}"
-
-    transcription_output_s3_uri = (getattr(opts, 'transcription_output_s3_uri', default_output_s3_uri)
-                                   or default_output_s3_uri)
+    transcription_output_s3_uri = get_uri_from_opts(opts, 'transcription_output_s3_uri')
     if transcription_output_s3_uri is None:
         raise ValueError(f"Transcription output s3 URI must be specified.")
 

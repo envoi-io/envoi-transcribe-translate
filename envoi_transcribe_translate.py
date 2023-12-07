@@ -67,37 +67,6 @@ class S3Helper:
         return json.loads(file_contents) if file_contents is not None else None
 
 
-# class Options:
-#
-#     def __init__(self, config_path):
-#         self.config_path = config_path
-#         self.config = self.load_config() if config_path else {}
-#         self.overrides = {}
-#
-#     def load_config(self):
-#         with open(self.config_path) as config_file:
-#             opts = json.load(config_file)  # Assumes your config file is in json format
-#             self.config = opts
-#
-#     def load_args(self, parser=None):
-#         if parser is None:
-#             opts = {}
-#         else:
-#             (opts, args) = parser.parse_known_args()
-#
-#         self.overrides = opts
-#         return opts
-#
-#     def get(self, key, default=None):
-#         # First, try to get the value from command line arguments
-#         value = getattr(self.overrides, key, None)
-#         # If not supplied, try the config file
-#         if value is None:
-#             value = self.config.get(key, None)
-#         # If still not found, return the default
-#         return value if value is not None else default
-
-
 class EnvoiTranscribeTranslateCreateCommand:
 
     def __init__(self, opts):

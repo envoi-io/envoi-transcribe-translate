@@ -8,6 +8,7 @@ from json import JSONEncoder
 import logging
 import os
 import sys
+from types import SimpleNamespace
 from urllib.parse import urlparse
 import uuid
 
@@ -627,9 +628,10 @@ def handle_s3_event_record(event_record):
     s3_bucket = data_from_s3['bucket']
     s3_object = data_from_s3['object']
 
-    media_file_uri = f"s3://{s3_bucket.name}/{s3_object.key}"
-    opts = config['input']
-    opts['media_file_uri'] = media_file_uri
+    media_file_uri = f"s3://{s3_bucket['name']}/{s3_object['key']}"
+    config_input = config['input']
+    config_input['media_file_uri'] = media_file_uri
+    opts = SimpleNamespace(**config_input)
 
     command_handler = EnvoiTranscribeTranslateCreateCommand(opts)
     command_handler.run()

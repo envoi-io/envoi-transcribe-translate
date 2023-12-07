@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import json
+import urllib
 from json import JSONEncoder
 import logging
 import os
@@ -26,14 +27,33 @@ class CustomJsonEncoder(JSONEncoder):
         return JSONEncoder.default(self, o)
 
 
+class StorageHelper:
+
+    @classmethod
+    def read_file(cls, file_path):
+        if file_path.startswith('s3://'):
+            bucket_name, object_key = parse_s3_uri(file_path)
+            return S3Helper.read_object(bucket_name=bucket_name, object_key=object_key)
+        elif file_path.startswith('http'):
+            return urllib.request.urlopen(file_path).read()
+        else:
+            with open(file_path) as f:
+                return f.read()
+
+    @classmethod
+    def read_file_json(cls, file_path):
+        file_contents = cls.read_file(file_path)
+        return json.loads(file_contents) if file_contents is not None else None
+
+
 class S3Helper:
 
     def __init__(self, client=None):
         self.s3 = client or boto3.client('s3')
 
-    def read_object(self, bucket, key):
+    def read_object(self, bucket_name, object_key):
         try:
-            response = self.s3.get_object(Bucket=bucket, Key=key)
+            response = self.s3.get_object(Bucket=bucket_name, Key=object_key)
             return response['Body'].read().decode('utf-8')
         except ClientError as e:
             if e.response['Error']['Code'] == "404":
@@ -598,6 +618,7 @@ def handle_s3_event_record(event_record):
         bucket_name, object_key = parse_s3_uri(config_file_uri)
         config = S3Helper.read_object_json(bucket_name, object_key)
 
+    config = StorageHelper.read_file_json(config_file_uri)
     if config is None:
         raise ValueError(f"Error loading config from {config_file_uri}")
 

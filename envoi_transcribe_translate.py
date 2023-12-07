@@ -464,12 +464,10 @@ def build_transcribe_input(opts):
     source_language_code = getattr(opts, 'source_language_code', 'en')
     subtitle_formats = getattr(opts, 'subtitle_formats', ['srt', 'vtt'])
 
-    # translation_languages = build_translate_inputs(
-    #     source_langauge_code=source_langauge_code,
-    #     # input_s3_uris=opts.,
-    #     translation_languages=opts.translation_languages,
-    #     output_bucket_name=opts.output_bucket_name
-    # )
+    source_language_for_file_name = source_language_code or 'auto'
+
+    transcription_job_name = (opts.transcription_job_name
+                              or f"{file_name_without_extension}-{source_language_for_file_name}")
 
     should_identify_language = getattr(opts, 'auto_identify_source_language', False)
 
@@ -525,55 +523,6 @@ def run_step_function(state_machine_arn, run_input):
     run_input_json: str = json.dumps(run_input)
     execution_arn = StateMachine(state_machine_arn=state_machine_arn).start(run_input_json)
     return execution_arn
-
-
-# def build_translate_inputs(source_langauge_code,
-#                            translation_languages,
-#                            output_bucket_name,
-#                            source_file_uri=None,
-#                            source_file_content_type=None,
-#                            output_s3_uri=None):
-#     logger.debug("Processing translation languages: %s", translation_languages)
-#     if not translation_languages:
-#         return []
-#
-#     translate_data_access_role_arn = ""
-#
-#     if len(translation_languages) == 1 and translation_languages[0] == 'all':
-#         translation_languages = get_translation_languages([source_langauge_code])
-#
-#     return [process_transcription_language(source_langauge_code,
-#                                            target_language,
-#                                            translate_data_access_role_arn,
-#                                            source_file_uri,
-#                                            output_s3_uri)
-#             for target_language in translation_languages]
-#
-#
-# def process_transcription_language(source_language_code,
-#                                    target_languages,
-#                                    data_access_role_arn,
-#                                    source_file_uri,
-#                                    output_s3_uri):
-#     source_file_content_type = 'text/plain'
-#     # {
-#     #     "LanguageCode": language_code,
-#     #     "OutputBucketName": output_bucket_name,
-#     # }
-#     return {
-#         "ClientToken": str(uuid.uuid4()),
-#         "DataAccessRoleArn": data_access_role_arn,
-#         "InputDataConfig": {
-#             "ContentType": source_file_content_type,
-#             "S3Uri": source_file_uri
-#         },
-#         "JobName": "string",
-#         "OutputDataConfig": {
-#             "S3Uri": output_s3_uri
-#         },
-#         "SourceLanguageCode": source_language_code,
-#         "TargetLanguageCodes": target_languages
-#     }
 
 
 def get_translation_languages(filter_values=None):

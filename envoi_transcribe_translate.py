@@ -137,7 +137,7 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--translation-data-access-role-arn', dest='translation_data_access_role_arn',
                             default=None,
                             help='The ARN of the role to use for translate to access data.')
-        parser.add_argument('-l', '--translation-languages', dest='translation_languages',
+        parser.add_argument('-l', '--translation-languages', dest='translation_language_codes',
                             nargs="+",
                             help='The languages to translate to.')
         parser.add_argument('--translation-output-folder-name', dest='translation_output_folder_name',
@@ -408,11 +408,11 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
     # subtitles = transcribe_input['Subtitles']
     # subtitle_formats = subtitles['Formats']
 
-    translation_languages = getattr(opts, 'translation_languages', [])
-    if len(translation_languages) == 1 and translation_languages[0] == 'all':
-        translate_language_codes = get_translation_languages([source_language_code])
+    translation_language_codes = getattr(opts, 'translation_language_codes', [])
+    if len(translation_language_codes) == 1 and translation_language_codes[0] == 'all':
+        translate_language_codes = get_translation_language_codes([source_language_code])
     else:
-        translate_language_codes = translation_languages
+        translate_language_codes = translation_language_codes
 
     data_access_role_arn = getattr(opts, 'translation_data_access_role_arn')
 

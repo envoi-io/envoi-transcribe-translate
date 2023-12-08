@@ -123,6 +123,9 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--transcription-job-name', dest='transcription_job_name',
                             default=None,
                             help='The name of the job.')
+        parser.add_argument('--transcription-output-folder-name', dest='transcription_output_folder_name',
+                            default="transcribed",
+                            help='The name of the folder in the S3 bucket where the transcribed files are stored.')
         parser.add_argument('--transcription-output-s3-uri', dest='transcription_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
@@ -137,6 +140,9 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('-l', '--translation-languages', dest='translation_languages',
                             nargs="+",
                             help='The languages to translate to.')
+        parser.add_argument('--translation-output-folder-name', dest='translation_output_folder_name',
+                            default="translated",
+                            help='The name of the folder in the S3 bucket where the translated files are stored.')
         parser.add_argument('--translation-output-s3-uri', dest='translation_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
@@ -412,10 +418,13 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
 
     translate_output_s3_uri = get_uri_from_opts(opts, 'translation_output_s3_uri')
 
-    if translate_output_s3_uri.endswith('/'):
-        translate_output_s3_uri = translate_output_s3_uri[:-1]
+    if not translate_output_s3_uri.endswith('/'):
+        translate_output_s3_uri += '/'
 
-    translate_output_s3_uri += '-translated/'
+    translation_output_folder_name = getattr(opts, 'translation_output_folder_name')
+
+    if translation_output_folder_name:
+        translate_output_s3_uri += f'{translation_output_folder_name}/'
 
     translate_inputs = []
     # for subtitle_format in subtitle_formats:
@@ -474,6 +483,10 @@ def build_transcribe_input(opts):
 
     if not output_object_key.endswith('/'):
         output_object_key += '/'
+
+    transcription_output_folder_name = getattr(opts, 'transcription_output_folder_name', None)
+    if transcription_output_folder_name:
+        output_object_key += f"{transcription_output_folder_name}/"
 
     transcribe_input = {
         "Media": {
@@ -589,9 +602,6 @@ def handle_s3_event_record(event_record):
     config_file_uri = os.environ.get('CONFIG_FILE_URI')
     if config_file_uri is None:
         raise ValueError("CONFIG_FILE_URI environment variable must be set.")
-    else:
-        bucket_name, object_key = parse_s3_uri(config_file_uri)
-        config = S3Helper.read_object_json(bucket_name, object_key)
 
     config = StorageHelper.read_file_json(config_file_uri)
     if config is None:

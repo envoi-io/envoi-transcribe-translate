@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import json
+import re
 import urllib
 from json import JSONEncoder
 import logging
@@ -16,6 +17,15 @@ import boto3
 from botocore.exceptions import ClientError
 
 logger = logging.Logger('envoi-transcribe-translate')
+
+DEFAULT_TRANSCRIPTION_OUTPUT_FOLDER_NAME = 'transcribed'
+DEFAULT_TRANSCRIPTION_SOURCE_LANGUAGE_CODE = None
+DEFAULT_TRANSCRIPTION_SUBTITLE_FORMATS = ['srt', 'vtt']
+DEFAULT_TRANSCRIPTION_AUTO_IDENTIFY_SOURCE_LANGUAGE = False
+DEFAULT_TRANSCRIPTION_CREATE_DEFAULT_JOB_NAME = True
+
+DEFAULT_TRANSLATION_OUTPUT_FOLDER_NAME = 'translated'
+DEFAULT_TRANSLATION_SOURCE_LANGUAGE_CODE = 'auto'
 
 
 class CustomJsonEncoder(JSONEncoder):
@@ -34,7 +44,7 @@ class StorageHelper:
     def read_file(cls, file_path):
         if file_path.startswith('s3://'):
             bucket_name, object_key = parse_s3_uri(file_path)
-            return S3Helper.read_object(bucket_name=bucket_name, object_key=object_key)
+            return S3Helper().read_object(bucket_name=bucket_name, object_key=object_key)
         elif file_path.startswith('http'):
             return urllib.request.urlopen(file_path).read()
         else:
@@ -77,7 +87,8 @@ class EnvoiTranscribeTranslateCreateCommand:
             opts = self.opts
 
         run_input = build_run_input(opts)
-        if opts.dry_run:
+        is_dry_run = getattr(opts, 'dry_run', False)
+        if is_dry_run:
             print(json.dumps(run_input, indent=2))
         else:
             execution_arn = run_step_function(opts.state_machine_arn, run_input)
@@ -100,11 +111,14 @@ class EnvoiTranscribeTranslateCreateCommand:
                             action='store_true',
                             help='Tells transcribe to try and automatically identify the source language of the '
                                  'media file.')
+        parser.add_argument('--create-default-transcription-job-name',
+                            dest='create_default_transcription_job_name',
+                            action='store_true',
+                            default=DEFAULT_TRANSCRIPTION_CREATE_DEFAULT_JOB_NAME,
+                            help='Tells transcribe to create a default job name. The default job name will consist of '
+                                 '{media_file_name_without_extension}-{source_language}')
         parser.add_argument('--state-machine-arn', dest='state_machine_arn',
                             help='The ARN of the state machine to run.')
-        parser.add_argument('--source-language', dest='source_language_code',
-                            default='en',
-                            help='The language of the source file.')
         parser.add_argument("--log-level", dest="log_level",
                             default="WARNING",
                             help="Set the logging level (options: DEBUG, INFO, WARNING, ERROR, CRITICAL)")
@@ -126,13 +140,13 @@ class EnvoiTranscribeTranslateCreateCommand:
                             default=None,
                             help='The name of the job.')
         parser.add_argument('--transcription-output-folder-name', dest='transcription_output_folder_name',
-                            default="transcribed",
+                            default=DEFAULT_TRANSCRIPTION_OUTPUT_FOLDER_NAME,
                             help='The name of the folder in the S3 bucket where the transcribed files are stored.')
         parser.add_argument('--transcription-output-s3-uri', dest='transcription_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
         parser.add_argument('--transcription-source-language-code', dest='transcription_source_language_code',
-                            default=None,
+                            default=DEFAULT_TRANSCRIPTION_SOURCE_LANGUAGE_CODE,
                             help='The language of the source file.')
 
         # Translation options
@@ -143,13 +157,13 @@ class EnvoiTranscribeTranslateCreateCommand:
                             nargs="+",
                             help='The languages to translate to.')
         parser.add_argument('--translation-output-folder-name', dest='translation_output_folder_name',
-                            default="translated",
+                            default=DEFAULT_TRANSLATION_OUTPUT_FOLDER_NAME,
                             help='The name of the folder in the S3 bucket where the translated files are stored.')
         parser.add_argument('--translation-output-s3-uri', dest='translation_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
         parser.add_argument('--translation-source-language-code', dest='translation_source_language_code',
-                            default='auto',
+                            default=DEFAULT_TRANSLATION_SOURCE_LANGUAGE_CODE,
                             help='The language of the source file.')
         return parser
 
@@ -357,31 +371,69 @@ def build_translate_input_for_file_and_language(input_data_config_s3_uri,
     return translate_input
 
 
-def get_uri_from_opts(opts, attribute_name):
+def get_default_output_s3_uri_from_opts(opts):
     output_bucket_name = getattr(opts, 'output_bucket_name', None)
     default_output_s3_uri = getattr(opts, 'output_s3_uri')
     if default_output_s3_uri is None and output_bucket_name is not None:
         default_output_s3_uri = f"s3://{output_bucket_name}"
 
-    output_s3_uri = getattr(opts, attribute_name, default_output_s3_uri)
-    if output_s3_uri is None and default_output_s3_uri is not None:
-        output_s3_uri = default_output_s3_uri
+    return default_output_s3_uri
 
-    should_append_transcription_job_to_object_key = getattr(opts, 'append_transcription_job_to_object_key', True)
-    transcription_job_name = getattr(opts, 'transcription_job_name', None)
-    if transcription_job_name and should_append_transcription_job_to_object_key:
-        if not output_s3_uri.endswith("/"):
-            output_s3_uri += "/"
-        output_s3_uri += f"{transcription_job_name}/"
+
+def get_uri_from_opts(opts, attribute_name):
+    output_s3_uri = getattr(opts, attribute_name, get_default_output_s3_uri_from_opts(opts))
+    if output_s3_uri is None:
+        # just in case the attribute was set to None in the options
+        output_s3_uri = get_default_output_s3_uri_from_opts(opts)
 
     return output_s3_uri
 
 
-def build_transcribe_output_file_s3_uri(output_bucket_name, output_key, transcription_job_name,
-                                        file_ext='.json'):
-    output_s3_uri = os.path.join(f"s3://{output_bucket_name}", output_key)
+def build_default_transcription_job_name(opts, media_file_uri=None, file_name_without_extension=None):
+    if file_name_without_extension is None:
+        if media_file_uri is None:
+            media_file_uri = opts.media_file_uri
+        file_name = os.path.basename(media_file_uri)
+        file_name_without_extension, _file_name_ext = os.path.splitext(file_name)
 
-    if not output_key.endswith(file_ext):
+    source_language_code = getattr(opts, 'transcription_source_language_code',
+                                   DEFAULT_TRANSCRIPTION_SOURCE_LANGUAGE_CODE)
+    source_language_for_file_name = source_language_code or 'auto'
+    transcription_job_name = f"{file_name_without_extension}-{source_language_for_file_name}"
+
+    return transcription_job_name
+
+
+def determine_transcription_job_name(opts, media_file_uri=None, file_name_without_extension=None):
+    transcription_job_name = getattr(opts, 'transcription_job_name', None)
+    if transcription_job_name is None and getattr(opts, 'create_default_transcription_job_name',
+                                                  DEFAULT_TRANSCRIPTION_CREATE_DEFAULT_JOB_NAME):
+        transcription_job_name = build_default_transcription_job_name(opts, media_file_uri, file_name_without_extension)
+
+    transcription_job_name = re.sub(r'[^0-9a-zA-Z._-]', '-', transcription_job_name)
+    return transcription_job_name
+
+
+def build_aws_transcribe_output_file_s3_uri(bucket_name, object_key, transcription_job_name=None, file_ext='.json'):
+    """
+    Build the output s3 URI the way AWS Transcribe would.
+
+    More information about the output S3 URI is available in the AWS Transcribe StartTranscriptionJob API documentation:
+    `OutputBucketName <https://docs.aws.amazon.com/transcribe/latest/APIReference/API_StartTranscriptionJob.html#transcribe-StartTranscriptionJob-request-OutputBucketName>`_
+    `OutputKey <https://docs.aws.amazon.com/transcribe/latest/APIReference/API_StartTranscriptionJob.html#transcribe-StartTranscriptionJob-request-OutputKey>`_
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_key (str): The key of the S3 object.
+        transcription_job_name (str, optional): The name of the Transcribe job. Defaults to None.
+        file_ext (str, optional): The extension of the output file. Defaults to '.json'.
+
+    Returns:
+        str: The AWS Transcribe output file S3 URI.
+    """
+    output_s3_uri = os.path.join(f"s3://{bucket_name}", object_key)
+
+    if not object_key.endswith(file_ext):
         if transcription_job_name is not None:
             output_s3_uri = os.path.join(output_s3_uri, transcription_job_name)
 
@@ -390,25 +442,82 @@ def build_transcribe_output_file_s3_uri(output_bucket_name, output_key, transcri
     return output_s3_uri
 
 
-def build_translate_input_from_transcribe_input(transcribe_input, opts):
+def build_transcription_output_uri_with_file_name(opts,
+                                                  transcription_job_name=None,
+                                                  file_name_without_extension=None):
+    transcription_output_s3_uri = build_transcription_output_uri_without_folder_name(opts, transcription_job_name)
+    if transcription_output_s3_uri is None:
+        raise ValueError("Transcription output s3 URI must be specified.")
+
+    transcription_output_folder_name = getattr(opts, 'transcription_output_folder_name',
+                                               DEFAULT_TRANSCRIPTION_OUTPUT_FOLDER_NAME)
+
+    if transcription_output_folder_name:
+        transcription_output_s3_uri += f"{transcription_output_folder_name}/"
+
+    # if we don't add the file name with the .json extension AWS Transcribe will treat it as a directory
+    # and add job name followed by the .json extension as the file name.
+    transcription_output_s3_uri += f"{file_name_without_extension}.json"
+
+    return transcription_output_s3_uri
+
+
+def build_transcription_output_uri_without_folder_name(opts, transcription_job_name=None):
+    transcription_output_s3_uri = get_uri_from_opts(opts, 'transcription_output_s3_uri')
+    if transcription_output_s3_uri is None:
+        return None
+
+    if not transcription_output_s3_uri.endswith('/'):
+        transcription_output_s3_uri += '/'
+
+    should_append_transcription_job_to_object_key = getattr(opts, 'append_transcription_job_to_object_key', True)
+    if should_append_transcription_job_to_object_key:
+        if transcription_job_name is None:
+            transcription_job_name = determine_transcription_job_name(opts)
+        if transcription_job_name is not None:
+            transcription_output_s3_uri += f"{transcription_job_name}/"
+
+    return transcription_output_s3_uri
+
+
+def build_translate_output_s3_uri(opts, transcribe_output_s3_uri):
+    translate_output_s3_uri = get_uri_from_opts(opts, 'translation_output_s3_uri')
+
+    if transcribe_output_s3_uri.startswith(translate_output_s3_uri):
+        translate_output_s3_uri = build_transcription_output_uri_without_folder_name(opts)
+
+    if not translate_output_s3_uri.endswith('/'):
+        translate_output_s3_uri += '/'
+
+    translation_output_folder_name = getattr(opts, 'translation_output_folder_name',
+                                             DEFAULT_TRANSLATION_OUTPUT_FOLDER_NAME)
+    if translation_output_folder_name:
+        translate_output_s3_uri += f'{translation_output_folder_name}/'
+
+    return translate_output_s3_uri
+
+
+def build_transcribe_output_s3_uri_from_transcribe_input(transcribe_input):
+    transcribe_bucket_name = transcribe_input['OutputBucketName']
+    transcribe_object_key = transcribe_input['OutputKey']
+    transcribe_job_name = transcribe_input['TranscriptionJobName']
+    transcribe_output_s3_uri = build_aws_transcribe_output_file_s3_uri(transcribe_bucket_name,
+                                                                       transcribe_object_key,
+                                                                       transcribe_job_name)
+    return transcribe_output_s3_uri
+
+
+def build_translate_input(opts, transcribe_output_s3_uri):
     """
     Build the AWS Translate input from the AWS Transcribe input.
 
-    :param transcribe_input: The transcribe input.
+    :param transcribe_output_s3_uri: The transcribe output s3 URI.
     :param opts: The command line options.
     :return: The AWS Translate input.
     """
 
-    transcribe_bucket_name = transcribe_input['OutputBucketName']
-    transcribe_object_key = transcribe_input['OutputKey']
-    transcribe_job_name = transcribe_input['TranscriptionJobName']
-    base_output_s3_uri = build_transcribe_output_file_s3_uri(transcribe_bucket_name,
-                                                             transcribe_object_key,
-                                                             transcribe_job_name)
-
-    source_language_code = getattr(opts, 'translation_source_language_code')
-    # subtitles = transcribe_input['Subtitles']
-    # subtitle_formats = subtitles['Formats']
+    source_language_code = getattr(opts, 'translation_source_language_code',
+                                   DEFAULT_TRANSLATION_SOURCE_LANGUAGE_CODE)
 
     translation_language_codes = getattr(opts, 'translation_language_codes', [])
     if len(translation_language_codes) == 1 and translation_language_codes[0] == 'all':
@@ -416,27 +525,20 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
     else:
         translate_language_codes = translation_language_codes
 
-    data_access_role_arn = getattr(opts, 'translation_data_access_role_arn')
+    data_access_role_arn = getattr(opts, 'translation_data_access_role_arn', None)
 
-    translate_output_s3_uri = get_uri_from_opts(opts, 'translation_output_s3_uri')
+    translate_output_s3_uri = build_translate_output_s3_uri(opts, transcribe_output_s3_uri)
 
-    if not translate_output_s3_uri.endswith('/'):
-        translate_output_s3_uri += '/'
-
-    translation_output_folder_name = getattr(opts, 'translation_output_folder_name')
-
-    if translation_output_folder_name:
-        translate_output_s3_uri += f'{translation_output_folder_name}/'
+    # We need the URI without a filename because AWS Transcribe requires a directory for the input
+    translate_input_s3_uri = os.path.dirname(transcribe_output_s3_uri)  # .replace('.json', f".{subtitle_format}")
+    if not translate_input_s3_uri.endswith('/'):
+        translate_input_s3_uri += '/'
 
     translate_inputs = []
-    # for subtitle_format in subtitle_formats:
-    transcribe_output_s3_uri = os.path.dirname(base_output_s3_uri)  # .replace('.json', f".{subtitle_format}")
-    if not transcribe_output_s3_uri.endswith('/'):
-        transcribe_output_s3_uri = transcribe_output_s3_uri + '/'
     for language_code in translate_language_codes:
         target_languages = [language_code]
         translate_input = build_translate_input_for_file_and_language(
-            input_data_config_s3_uri=transcribe_output_s3_uri,
+            input_data_config_s3_uri=translate_input_s3_uri,
             source_language_code=source_language_code,
             target_languages=target_languages,
             data_access_role_arn=data_access_role_arn,
@@ -463,32 +565,28 @@ def parse_s3_uri(uri):
 
 def build_transcribe_input(opts):
     media_file_uri = opts.media_file_uri
-    parsed_uri = urlparse(media_file_uri)
-    file_name = os.path.basename(parsed_uri.path)
+    file_name = os.path.basename(media_file_uri)
     file_name_without_extension, _file_name_ext = os.path.splitext(file_name)
 
-    source_language_code = getattr(opts, 'source_language_code', None)
-    subtitle_formats = getattr(opts, 'subtitle_formats', ['srt', 'vtt'])
+    source_language_code = getattr(opts, 'transcription_source_language_code',
+                                   DEFAULT_TRANSCRIPTION_SOURCE_LANGUAGE_CODE)
 
-    source_language_for_file_name = source_language_code or 'auto'
+    subtitle_formats = getattr(opts, 'subtitle_formats', DEFAULT_TRANSCRIPTION_SUBTITLE_FORMATS)
 
-    transcription_job_name = (opts.transcription_job_name
-                              or f"{file_name_without_extension}-{source_language_for_file_name}")
+    should_identify_language = getattr(opts, 'auto_identify_source_language',
+                                       DEFAULT_TRANSCRIPTION_AUTO_IDENTIFY_SOURCE_LANGUAGE)
 
-    should_identify_language = getattr(opts, 'auto_identify_source_language', False)
+    if should_identify_language:
+        source_language_code = None
 
-    transcription_output_s3_uri = get_uri_from_opts(opts, 'transcription_output_s3_uri')
-    if transcription_output_s3_uri is None:
-        raise ValueError("Transcription output s3 URI must be specified.")
+    transcription_job_name = determine_transcription_job_name(opts, file_name_without_extension)
+
+    transcription_output_s3_uri = build_transcription_output_uri_with_file_name(
+        opts,
+        transcription_job_name=transcription_job_name,
+        file_name_without_extension=file_name_without_extension)
 
     output_bucket_name, output_object_key = parse_s3_uri(transcription_output_s3_uri)
-
-    if not output_object_key.endswith('/'):
-        output_object_key += '/'
-
-    transcription_output_folder_name = getattr(opts, 'transcription_output_folder_name', None)
-    if transcription_output_folder_name:
-        output_object_key += f"{transcription_output_folder_name}/"
 
     transcribe_input = {
         "Media": {
@@ -519,7 +617,9 @@ def build_run_input(opts):
     """
 
     transcribe_input = build_transcribe_input(opts)
-    translate_input = build_translate_input_from_transcribe_input(transcribe_input, opts)
+    transcribe_output_s3_uri = build_transcribe_output_s3_uri_from_transcribe_input(transcribe_input)
+
+    translate_input = build_translate_input(opts, transcribe_output_s3_uri)
 
     sf_input = {
         "Transcribe": transcribe_input,
@@ -569,12 +669,8 @@ def parse_command_line(cli_args, env_vars, sub_commands=None):
     return opts, args, env_vars, parser
 
 
-def lambda_handler(event, context):
+def lambda_handler(event, _context):
     print("Received event: " + json.dumps(event, indent=2))
-    try:
-        print("Context: " + json.dumps(context, indent=2))
-    except (TypeError, RecursionError) as e:
-        print("Exception print context.", e)
 
     event_record = event['Records'][0]
 
@@ -585,7 +681,7 @@ def lambda_handler(event, context):
         case _:
             raise NotImplementedError(f"Unsupported event source: {event_source}")
 
-    return context
+    return {"success": True}
 
 
 def handle_s3_event_record(event_record):

@@ -120,6 +120,8 @@ class EnvoiTranscribeTranslateCreateCommand:
                             default=None,
                             help='A default S3 URI for file output. This will be used if a more specific S3 URI is '
                                  '\n not supplied. ex: --transcription-output-s3-uri, --translation-output-s3-uri')
+
+        # Transcription options
         parser.add_argument('--transcription-job-name', dest='transcription_job_name',
                             default=None,
                             help='The name of the job.')
@@ -390,7 +392,7 @@ def build_transcribe_output_file_s3_uri(output_bucket_name, output_key, transcri
 
 def build_translate_input_from_transcribe_input(transcribe_input, opts):
     """
-    Build the AWS Translate input from the transcribe input.
+    Build the AWS Translate input from the AWS Transcribe input.
 
     :param transcribe_input: The transcribe input.
     :param opts: The command line options.

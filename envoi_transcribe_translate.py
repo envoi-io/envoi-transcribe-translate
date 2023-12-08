@@ -457,7 +457,7 @@ def parse_s3_uri(uri):
     if not parsed_uri.netloc:
         raise ValueError("Bad s3 uri. Please provide uri in format: s3://bucket_name/object_key")
     bucket_name = parsed_uri.netloc
-    object_key = parsed_uri.path[1:]  # exclude the leading '/'
+    object_key = parsed_uri.path.lstrip('/')
     return bucket_name, object_key
 
 

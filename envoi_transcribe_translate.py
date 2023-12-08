@@ -4,12 +4,12 @@ import argparse
 import datetime
 import json
 import re
-import urllib
 from json import JSONEncoder
 import logging
 import os
 import sys
 from types import SimpleNamespace
+from urllib.request import urlopen
 from urllib.parse import urlparse
 import uuid
 
@@ -46,7 +46,7 @@ class StorageHelper:
             bucket_name, object_key = parse_s3_uri(file_path)
             return S3Helper().read_object(bucket_name=bucket_name, object_key=object_key)
         elif file_path.startswith('http'):
-            return urllib.request.urlopen(file_path).read()
+            return urlopen(file_path).read()
         else:
             with open(file_path) as f:
                 return f.read()
@@ -419,6 +419,7 @@ def build_aws_transcribe_output_file_s3_uri(bucket_name, object_key, transcripti
     Build the output s3 URI the way AWS Transcribe would.
 
     More information about the output S3 URI is available in the AWS Transcribe StartTranscriptionJob API documentation:
+    # noqa: E501
     `OutputBucketName <https://docs.aws.amazon.com/transcribe/latest/APIReference/API_StartTranscriptionJob.html#transcribe-StartTranscriptionJob-request-OutputBucketName>`_
     `OutputKey <https://docs.aws.amazon.com/transcribe/latest/APIReference/API_StartTranscriptionJob.html#transcribe-StartTranscriptionJob-request-OutputKey>`_
 

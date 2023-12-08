@@ -96,10 +96,10 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--media-file-uri', dest='media_file_uri',
                             required=True,
                             help='The S3 URI of the media file to transcribe.')
-        # parser.add_argument('--auto-identify-source-language', dest='auto_identify_source_language',
-        #                     action='store_true',
-        #                     help='Tells transcribe to try and automatically identify the source language of the '
-        #                          'media file.'
+        parser.add_argument('--auto-identify-source-language', dest='auto_identify_source_language',
+                            action='store_true',
+                            help='Tells transcribe to try and automatically identify the source language of the '
+                                 'media file.')
         parser.add_argument('--state-machine-arn', dest='state_machine_arn',
                             help='The ARN of the state machine to run.')
         parser.add_argument('--source-language', dest='source_language_code',
@@ -126,6 +126,11 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--transcription-output-s3-uri', dest='transcription_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
+        parser.add_argument('--transcription-source-language-code', dest='transcription_source_language_code',
+                            default=None,
+                            help='The language of the source file.')
+
+        # Translation options
         parser.add_argument('--translation-data-access-role-arn', dest='translation_data_access_role_arn',
                             default=None,
                             help='The ARN of the role to use for translate to access data.')
@@ -135,7 +140,9 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--translation-output-s3-uri', dest='translation_output_s3_uri',
                             default=None,
                             help='The S3 URI of the translate output file location.')
-
+        parser.add_argument('--translation-source-language-code', dest='translation_source_language_code',
+                            default='auto',
+                            help='The language of the source file.')
         return parser
 
 
@@ -391,7 +398,7 @@ def build_translate_input_from_transcribe_input(transcribe_input, opts):
                                                              transcribe_object_key,
                                                              transcribe_job_name)
 
-    source_language_code = transcribe_input['LanguageCode']
+    source_language_code = getattr(opts, 'translation_source_language_code')
     # subtitles = transcribe_input['Subtitles']
     # subtitle_formats = subtitles['Formats']
 
@@ -449,9 +456,7 @@ def build_transcribe_input(opts):
     file_name = os.path.basename(parsed_uri.path)
     file_name_without_extension, _file_name_ext = os.path.splitext(file_name)
 
-    transcription_job_name = opts.transcription_job_name or f"{file_name_without_extension}-{str(uuid.uuid4())[:8]}"
-
-    source_language_code = getattr(opts, 'source_language_code', 'en')
+    source_language_code = getattr(opts, 'source_language_code', None)
     subtitle_formats = getattr(opts, 'subtitle_formats', ['srt', 'vtt'])
 
     source_language_for_file_name = source_language_code or 'auto'
@@ -494,7 +499,7 @@ def build_run_input(opts):
 
     @see https://docs.aws.amazon.com/transcribe/latest/APIReference/API_StartTranscriptionJob.html
 
-    :param opts: The command line options.
+    :param opts: Input options.
     :return: The input to the state machine, in JSON format.
     """
 
@@ -515,7 +520,7 @@ def run_step_function(state_machine_arn, run_input):
     return execution_arn
 
 
-def get_translation_languages(filter_values=None):
+def get_translation_language_codes(filter_values=None):
     if filter_values is None:
         filter_values = []
     filter_values.append('auto')

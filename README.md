@@ -12,11 +12,11 @@ A utility that submits media files to an AWS Step Functions to process transcrip
 
 [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 
-> You can also use homebrew to install the AWS CLI by running `brew install awscli`
+> You can use homebrew to install the AWS CLI by running `brew install awscli`
 
 [jq](https://jqlang.github.io/jq/)
 
-> You can also use homebrew to install the jq utility by running `brew install jq`
+> You can use homebrew to install the jq utility by running `brew install jq`
 
 ### Installation Script
 

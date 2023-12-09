@@ -239,7 +239,7 @@ You can deploy the script as a Lambda function and have it handle S3 object crea
     --runtime python3.11 \
     --role ${LAMBDA_ROLE_ARN} \
     --handler envoi_translate_transcribe.lambda_handler \
-    --environment "Variables={CONFIG_FILE_URI=${LAMBDA_FUNCTION_CONFIG_FILE_URI}"
+    --environment "Variables={CONFIG_FILE_URI=${LAMBDA_FUNCTION_CONFIG_FILE_URI}}"
     --code "Uri=fileb://./" 
     ```
 5. Create the S3 trigger

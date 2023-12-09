@@ -233,11 +233,10 @@ You can deploy the script as a Lambda function and have it handle S3 object crea
    }'
    ```
 4. Create a zip of the source code
-```shell
-zip envoi-translate-transcribe-deployment-package.zip envoi_transcribe_translate.py
-```
-
-4. Create the Lambda function
+    ```shell
+    zip envoi-translate-transcribe-deployment-package.zip envoi_transcribe_translate.py
+    ```
+5. Create the Lambda function
     ```shell
     aws lambda create-function \
     --function-name $LAMBDA_FUNCTION_NAME \
@@ -247,7 +246,7 @@ zip envoi-translate-transcribe-deployment-package.zip envoi_transcribe_translate
     --environment "Variables={CONFIG_FILE_URI=${LAMBDA_FUNCTION_CONFIG_FILE_URI}}"
     --zip-file "Uri=fileb://envoi-translate-transcribe-deployment-package.zip" 
     ```
-5. Create the S3 trigger
+6. Create the S3 trigger
     ```shell
     aws lambda add-permission \
         --function-name ${LAMBDA_FUNCTION_NAME} \

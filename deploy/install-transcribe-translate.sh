@@ -220,25 +220,26 @@ EOF
 
 STEP_FUNCTION_JSON=$(cat <<-EOF
 {
-  "Comment": "A state machine that transcribes documents.",
+  "Comment": "A state machine that transcribes and translates documents.",
   "StartAt": "StartTranscriptionJob",
   "States": {
     "StartTranscriptionJob": {
       "Type": "Task",
       "Parameters": {
         "Media.$": "$.Transcribe.Media",
-        "IdentifyLanguage": "true",
+        "IdentifyLanguage.$": "$.Transcribe.IdentifyLanguage",
+        "LanguageCode.$": "$.Transcribe.LanguageCode",
         "OutputBucketName.$": "$.Transcribe.OutputBucketName",
+        "OutputKey.$": "$.Transcribe.OutputKey",
         "TranscriptionJobName.$": "$.Transcribe.TranscriptionJobName",
-        "Subtitles": {
-          "Formats": [
-            "srt",
-            "vtt"
-          ],
-          "OutputStartIndex": 1
-        }
+        "Subtitles.$": "$.Transcribe.Subtitles"
       },
       "Resource": "arn:aws:states:::aws-sdk:transcribe:startTranscriptionJob",
+      "Next": "Wait X Seconds for Transcription Job to Progress"
+    },
+    "Wait X Seconds for Transcription Job to Progress": {
+      "Type": "Wait",
+      "Seconds": 5,
       "Next": "GetTranscriptionJob"
     },
     "GetTranscriptionJob": {
@@ -254,19 +255,108 @@ STEP_FUNCTION_JSON=$(cat <<-EOF
       "Choices": [
         {
           "Variable": "$.TranscriptionJob.TranscriptionJobStatus",
-          "StringEquals": "IN_PROGRESS",
-          "Next": "Wait for Transcription to Complete"
+          "StringEquals": "COMPLETED",
+          "Next": "Translate Transcription Files"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.TranscriptionJob.TranscriptionJobStatus",
+              "StringEquals": "IN_PROGRESS"
+            },
+            {
+              "Variable": "$.TranscriptionJob.TranscriptionJobStatus",
+              "StringEquals": "QUEUED"
+            }
+          ],
+          "Next": "Wait X Seconds for Transcription Job to Progress"
         }
       ],
-      "Default": "Success"
+      "Default": "Transcription Job Failed"
+    },
+    "Translate Transcription Files": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "StartTextTranslationJob",
+        "States": {
+          "StartTextTranslationJob": {
+            "Type": "Task",
+            "Next": "Wait X Seconds for Translation Job to Progress",
+            "Parameters": {
+              "ClientToken.$": "$.ClientToken",
+              "DataAccessRoleArn.$": "$.DataAccessRoleArn",
+              "InputDataConfig.$": "$.InputDataConfig",
+              "OutputDataConfig.$": "$.OutputDataConfig",
+              "SourceLanguageCode.$": "$.SourceLanguageCode",
+              "TargetLanguageCodes.$": "$.TargetLanguageCodes"
+            },
+            "Resource": "arn:aws:states:::aws-sdk:translate:startTextTranslationJob"
+          },
+          "Wait X Seconds for Translation Job to Progress": {
+            "Type": "Wait",
+            "Next": "DescribeTextTranslationJob",
+            "Seconds": 5
+          },
+          "DescribeTextTranslationJob": {
+            "Type": "Task",
+            "Next": "Job Complete?",
+            "Parameters": {
+              "JobId.$": "$.JobId"
+            },
+            "Resource": "arn:aws:states:::aws-sdk:translate:describeTextTranslationJob",
+            "ResultSelector": {
+              "JobId.$": "$.TextTranslationJobProperties.JobId",
+              "JobStatus.$": "$.TextTranslationJobProperties.JobStatus"
+            }
+          },
+          "Job Complete?": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Or": [
+                  {
+                    "Variable": "$.JobStatus",
+                    "StringEquals": "IN_PROGRESS"
+                  },
+                  {
+                    "Variable": "$.JobStatus",
+                    "StringEquals": "SUBMITTED"
+                  }
+                ],
+                "Next": "Wait X Seconds for Translation Job to Progress"
+              },
+              {
+                "Variable": "$.JobStatus",
+                "StringEquals": "COMPLETED",
+                "Next": "Translation Job Succeeded"
+              }
+            ],
+            "Default": "Translation Job Failed"
+          },
+          "Translation Job Succeeded": {
+            "Comment": "Placeholder for a state which handles the success.",
+            "Type": "Pass",
+            "End": true
+          },
+          "Translation Job Failed": {
+            "Comment": "Placeholder for a state which handles the failure.",
+            "Type": "Pass",
+            "End": true
+          }
+        }
+      },
+      "Next": "Success",
+      "MaxConcurrency": 40,
+      "InputPath": "$$.Execution.Input.Translate.Inputs"
     },
     "Success": {
       "Type": "Succeed"
     },
-    "Wait for Transcription to Complete": {
-      "Type": "Wait",
-      "Seconds": 5,
-      "Next": "GetTranscriptionJob"
+    "Transcription Job Failed": {
+      "Type": "Fail"
     }
   }
 }

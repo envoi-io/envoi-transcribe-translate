@@ -29,17 +29,20 @@ By default, this will create a IAM role, IAM policy, and a step function.
 ### Create
 
 ```
-usage: envoi-transcribe-translate.py create [-h] --media-file-uri MEDIA_FILE_URI [--state-machine-arn STATE_MACHINE_ARN] [--source-language SOURCE_LANGUAGE_CODE] [--log-level LOG_LEVEL] [--dry-run] [--output-bucket-name OUTPUT_BUCKET_NAME] [--output-s3-uri OUTPUT_S3_URI] [--transcription-job-name TRANSCRIPTION_JOB_NAME] [--transcription-output-s3-uri TRANSCRIPTION_OUTPUT_S3_URI] [--translation-data-access-role-arn TRANSCRIPTION_DATA_ACCESS_ROLE_ARN]
-                                            [-l TRANSLATION_LANGUAGES [TRANSLATION_LANGUAGES ...]] [--translation-output-s3-uri TRANSLATION_OUTPUT_S3_URI]
+usage: envoi_transcribe_translate.py create [-h] --media-file-uri MEDIA_FILE_URI [--auto-identify-source-language] [--create-default-transcription-job-name] [--state-machine-arn STATE_MACHINE_ARN] [--log-level LOG_LEVEL] [--dry-run] [--output-bucket-name OUTPUT_BUCKET_NAME] [--output-s3-uri OUTPUT_S3_URI] [--transcription-job-name TRANSCRIPTION_JOB_NAME] [--transcription-output-folder-name TRANSCRIPTION_OUTPUT_FOLDER_NAME]
+                                            [--transcription-output-s3-uri TRANSCRIPTION_OUTPUT_S3_URI] [--transcription-source-language-code TRANSCRIPTION_SOURCE_LANGUAGE_CODE] [--translation-data-access-role-arn TRANSLATION_DATA_ACCESS_ROLE_ARN] [-l TRANSLATION_LANGUAGE_CODES [TRANSLATION_LANGUAGE_CODES ...]] [--translation-output-folder-name TRANSLATION_OUTPUT_FOLDER_NAME] [--translation-output-s3-uri TRANSLATION_OUTPUT_S3_URI]
+                                            [--translation-source-language-code TRANSLATION_SOURCE_LANGUAGE_CODE] [--iconik-app-id ICONIK_APP_ID] [--iconik-auth-token ICONIK_AUTH_TOKEN] [--iconik-asset-id ICONIK_ASSET_ID] [--iconik-format-name ICONIK_FORMAT_NAME] [--iconik-storage-id ICONIK_STORAGE_ID]
 
 options:
   -h, --help            show this help message and exit
   --media-file-uri MEDIA_FILE_URI
                         The S3 URI of the media file to transcribe.
+  --auto-identify-source-language
+                        Tells transcribe to try and automatically identify the source language of the media file.
+  --create-default-transcription-job-name
+                        Tells transcribe to create a default job name. The default job name will consist of {media_file_name_without_extension}-{source_language}
   --state-machine-arn STATE_MACHINE_ARN
                         The ARN of the state machine to run.
-  --source-language SOURCE_LANGUAGE_CODE
-                        The language of the source file.
   --log-level LOG_LEVEL
                         Set the logging level (options: DEBUG, INFO, WARNING, ERROR, CRITICAL)
   --dry-run             Do not run the state machine, just print the input.
@@ -49,15 +52,32 @@ options:
                         A default S3 URI for file output. This will be used if a more specific S3 URI is not supplied. ex: --transcription-output-s3-uri, --translation-output-s3-uri
   --transcription-job-name TRANSCRIPTION_JOB_NAME
                         The name of the job.
+  --transcription-output-folder-name TRANSCRIPTION_OUTPUT_FOLDER_NAME
+                        The name of the folder in the S3 bucket where the transcribed files are stored.
   --transcription-output-s3-uri TRANSCRIPTION_OUTPUT_S3_URI
                         The S3 URI of the translate output file location.
-  --translation-data-access-role-arn TRANSCRIPTION_DATA_ACCESS_ROLE_ARN
+  --transcription-source-language-code TRANSCRIPTION_SOURCE_LANGUAGE_CODE
+                        The language of the source file.
+  --translation-data-access-role-arn TRANSLATION_DATA_ACCESS_ROLE_ARN
                         The ARN of the role to use for translate to access data.
-  -l TRANSLATION_LANGUAGES [TRANSLATION_LANGUAGES ...], --translation-languages TRANSLATION_LANGUAGES [TRANSLATION_LANGUAGES ...]
+  -l TRANSLATION_LANGUAGE_CODES [TRANSLATION_LANGUAGE_CODES ...], --translation-languages TRANSLATION_LANGUAGE_CODES [TRANSLATION_LANGUAGE_CODES ...]
                         The languages to translate to.
+  --translation-output-folder-name TRANSLATION_OUTPUT_FOLDER_NAME
+                        The name of the folder in the S3 bucket where the translated files are stored.
   --translation-output-s3-uri TRANSLATION_OUTPUT_S3_URI
                         The S3 URI of the translate output file location.
-
+  --translation-source-language-code TRANSLATION_SOURCE_LANGUAGE_CODE
+                        The language of the source file.
+  --iconik-app-id ICONIK_APP_ID
+                        The app id for the iconik API.
+  --iconik-auth-token ICONIK_AUTH_TOKEN
+                        The auth token for the iconik API.
+  --iconik-asset-id ICONIK_ASSET_ID
+                        The asset id for the iconik API.
+  --iconik-format-name ICONIK_FORMAT_NAME
+                        The name of the format to use transcription.
+  --iconik-storage-id ICONIK_STORAGE_ID
+                        The storage id for the iconik API.
 ```
 
 ### Describe

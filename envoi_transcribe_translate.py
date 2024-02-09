@@ -8,6 +8,7 @@ from json import JSONEncoder
 import logging
 import os
 import sys
+import time
 from types import SimpleNamespace
 from urllib.request import urlopen
 from urllib.parse import urlparse
@@ -647,6 +648,23 @@ def run_step_function(state_machine_arn, run_input):
     run_input_json: str = json.dumps(run_input)
     execution_arn = StateMachine(state_machine_arn=state_machine_arn).start(run_input_json)
     return execution_arn
+
+
+def wait_for_state_machine_to_finish(execution_arn, sleep_time=60):
+    client = boto3.client('stepfunctions')
+
+    while True:
+        response = client.describe_execution(
+            executionArn=execution_arn
+        )
+
+        status = response['status']
+        if status in ['SUCCEEDED', 'FAILED', 'TIMED_OUT', 'ABORTED']:
+            break
+
+        time.sleep(sleep_time)
+
+    return status
 
 
 def get_translation_language_codes(filter_values=None):

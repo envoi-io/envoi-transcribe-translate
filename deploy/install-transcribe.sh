@@ -136,8 +136,7 @@ fi
 export ROLE_NAME
 
 if [ -n "${POLICY_ARN}" ]; then
-  POLICY_ARN=${EXISTING_POLICY_ARN}
-  IFS="/" read -r -a POLICY_ARN_SPLIT <<< "${EXISTING_POLICY_ARN}"
+  IFS="/" read -r -a POLICY_ARN_SPLIT <<< "${POLICY_ARN}"
   POLICY_NAME=${POLICY_ARN_SPLIT[${#POLICY_ARN[@]}-1]}
 else
   POLICY_NAME=${POLICY_NAME:-${STEP_FUNCTION_NAME}}
@@ -266,9 +265,8 @@ if [ -z "${POLICY_ARN}" ]; then
   [ -z "${POLICY_NAME}" ] && echo "POLICY_ARN or POLICY_NAME must be specified." && exit 1
   echo "Creating policy named \"${POLICY_NAME}\"..."
   # Create the policy and capture the output into an environment variable
-  POLICY_RESPONSE=$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_JSON}" --output json)
   if ! POLICY_RESPONSE=$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_JSON}" --output json); then
-      echo "Error: Failed to create the policy ${ROLE_NAME}" >&2
+      echo "Error: Failed to create the policy ${POLICY_NAME}" >&2
       echo "${POLICY_RESPONSE}"
       exit 1
   fi

@@ -165,6 +165,19 @@ class EnvoiTranscribeTranslateCreateCommand:
         parser.add_argument('--translation-source-language-code', dest='translation_source_language_code',
                             default=DEFAULT_TRANSLATION_SOURCE_LANGUAGE_CODE,
                             help='The language of the source file.')
+
+        # Iconik Options
+        parser.add_argument('--iconik-app-id', dest='iconik_app_id',
+                            help='The app id for the iconik API.')
+        parser.add_argument('--iconik-auth-token', dest='iconik_auth_token',
+                            help='The auth token for the iconik API.')
+        parser.add_argumet('--iconik-asset-id', dest='iconik_asset_id',
+                            help='The asset id for the iconik API.')
+        parser.add_argument('--iconik-format-name', dest='iconik_format_name',
+                            help='The name of the format to use transcription.')
+        parser.add_argument('--iconik-storage-id', dest='iconik_storage_id',
+                            help='The storage id for the iconik API.')
+
         return parser
 
 

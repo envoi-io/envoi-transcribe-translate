@@ -17,6 +17,8 @@ import uuid
 import boto3
 from botocore.exceptions import ClientError
 
+from iconik_helper import IconikHelper
+
 logger = logging.Logger('envoi-transcribe-translate')
 
 DEFAULT_TRANSCRIPTION_OUTPUT_FOLDER_NAME = 'transcribed'
@@ -76,6 +78,9 @@ class S3Helper:
     def read_object_json(self, bucket, key):
         file_contents = self.read_object(bucket, key)
         return json.loads(file_contents) if file_contents is not None else None
+
+
+
 
 
 class EnvoiTranscribeTranslateCreateCommand:
@@ -172,7 +177,7 @@ class EnvoiTranscribeTranslateCreateCommand:
                             help='The app id for the iconik API.')
         parser.add_argument('--iconik-auth-token', dest='iconik_auth_token',
                             help='The auth token for the iconik API.')
-        parser.add_argumet('--iconik-asset-id', dest='iconik_asset_id',
+        parser.add_argument('--iconik-asset-id', dest='iconik_asset_id',
                             help='The asset id for the iconik API.')
         parser.add_argument('--iconik-format-name', dest='iconik_format_name',
                             help='The name of the format to use transcription.')

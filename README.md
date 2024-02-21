@@ -1,6 +1,6 @@
 # Envoi Transcribe Translate
 
-Envoi Transcribe Translate allows for files to be transcribed and translated using AWS services.
+Envoi Transcribe Translate allows for files to be transcribed and translated using AWS services.  
 
 ## Overview
 
